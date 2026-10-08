@@ -19,8 +19,14 @@ interface DatabaseStructure {
   copilotMessages: CopilotMessage[];
 }
 
-const DATA_DIR = path.resolve(process.cwd(), '.data');
-const DB_FILE = path.join(DATA_DIR, 'scamguard_db.json');
+function resolveDataPaths() {
+  const isVercel = Boolean(process.env.VERCEL);
+  const rootDataDir = path.resolve(process.cwd(), '.data');
+  const targetDir = isVercel ? path.join('/tmp', '.data') : rootDataDir;
+  const targetFile = path.join(targetDir, 'scamguard_db.json');
+  const sourceFile = path.join(rootDataDir, 'scamguard_db.json');
+  return { targetDir, targetFile, sourceFile, isVercel };
+}
 
 function hashPassword(password: string): string {
   return crypto.createHash('sha256').update(password + 'sg_salt_2026').digest('hex');
@@ -40,12 +46,26 @@ export class DataStore {
 
   private init() {
     try {
-      if (!fs.existsSync(DATA_DIR)) {
-        fs.mkdirSync(DATA_DIR, { recursive: true });
+      const { targetDir, targetFile, sourceFile, isVercel } = resolveDataPaths();
+      if (!fs.existsSync(targetDir)) {
+        fs.mkdirSync(targetDir, { recursive: true });
       }
 
-      if (fs.existsSync(DB_FILE)) {
-        const raw = fs.readFileSync(DB_FILE, 'utf-8');
+      // On Vercel, copy seed database if present in source and not yet in /tmp
+      if (isVercel && !fs.existsSync(targetFile) && fs.existsSync(sourceFile)) {
+        try {
+          fs.copyFileSync(sourceFile, targetFile);
+        } catch {
+          // ignore copy error
+        }
+      }
+
+      const fileToRead = fs.existsSync(targetFile)
+        ? targetFile
+        : (fs.existsSync(sourceFile) ? sourceFile : null);
+
+      if (fileToRead) {
+        const raw = fs.readFileSync(fileToRead, 'utf-8');
         const loaded = JSON.parse(raw);
         this.data = {
           users: Array.isArray(loaded.users) ? loaded.users : [],
@@ -82,10 +102,11 @@ export class DataStore {
 
   private persist() {
     try {
-      if (!fs.existsSync(DATA_DIR)) {
-        fs.mkdirSync(DATA_DIR, { recursive: true });
+      const { targetDir, targetFile } = resolveDataPaths();
+      if (!fs.existsSync(targetDir)) {
+        fs.mkdirSync(targetDir, { recursive: true });
       }
-      fs.writeFileSync(DB_FILE, JSON.stringify(this.data, null, 2), 'utf-8');
+      fs.writeFileSync(targetFile, JSON.stringify(this.data, null, 2), 'utf-8');
     } catch (err) {
       console.error('Error persisting database:', err);
     }

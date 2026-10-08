@@ -34,11 +34,24 @@ async function fetchWithAuth(url: string, options: RequestInit = {}) {
   const res = await fetch(url, { ...options, headers });
   if (!res.ok) {
     let errMsg = `Request failed (${res.status})`;
-    try {
-      const errJson = await res.json();
-      if (errJson.error) errMsg = errJson.error;
-    } catch {
-      // fallback
+    const contentType = res.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+      try {
+        const errJson = await res.json();
+        if (errJson.error) errMsg = errJson.error;
+      } catch {
+        // fallback
+      }
+    } else {
+      if (res.status === 401) {
+        errMsg = 'Authentication required. Please sign in to view this content.';
+      } else if (res.status === 403) {
+        errMsg = 'Access denied. You do not have permission to view this resource.';
+      } else if (res.status === 404) {
+        errMsg = 'Endpoint not found (404). The API service could not be reached.';
+      } else if (res.status >= 500) {
+        errMsg = 'Internal server error (500). Please try again shortly.';
+      }
     }
     throw new Error(errMsg);
   }

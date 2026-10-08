@@ -28,20 +28,33 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [retryCount, setRetryCount] = useState(0);
+
   useEffect(() => {
+    let cancelled = false;
     const fetchStats = async () => {
       try {
         setLoading(true);
+        setError(null);
         const data = await api.dashboard.stats();
-        setStats(data);
+        if (!cancelled) {
+          setStats(data);
+        }
       } catch (err: any) {
-        setError(err.message || 'Failed to load dashboard metrics.');
+        if (!cancelled) {
+          setError(err.message || 'Failed to load dashboard metrics.');
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     };
     fetchStats();
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [retryCount]);
 
   if (loading) {
     return (
@@ -62,12 +75,20 @@ export const Dashboard: React.FC<DashboardProps> = ({
         <AlertTriangle className="h-8 w-8 text-amber-400 mx-auto" />
         <h3 className="text-sm font-semibold text-slate-100">Unable to load dashboard</h3>
         <p className="text-xs text-slate-400">{error || 'Please sign in or refresh the page.'}</p>
-        <button
-          onClick={onNavigateToAnalyzer}
-          className="px-4 py-2 text-xs bg-cyan-600 text-white rounded hover:bg-cyan-500 cursor-pointer"
-        >
-          Go to Analyzer
-        </button>
+        <div className="flex items-center justify-center gap-2 pt-2">
+          <button
+            onClick={() => setRetryCount((c) => c + 1)}
+            className="px-3.5 py-1.5 text-xs bg-slate-800 text-slate-300 hover:bg-slate-700 rounded cursor-pointer transition-colors"
+          >
+            Retry
+          </button>
+          <button
+            onClick={onNavigateToAnalyzer}
+            className="px-3.5 py-1.5 text-xs bg-cyan-600 text-white rounded hover:bg-cyan-500 cursor-pointer transition-colors"
+          >
+            Go to Analyzer
+          </button>
+        </div>
       </div>
     );
   }

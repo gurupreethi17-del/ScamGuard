@@ -15,6 +15,14 @@
       "name": "Test User",
       "role": "user",
       "createdAt": "2026-10-08T01:44:06.928Z"
+    },
+    {
+      "id": "usr_1791427093188_812ed3",
+      "email": "new_dashboard_user_1791427093156@example.com",
+      "passwordHash": "8eb79863838e26c65ee397fde937f7fbcc041dd2c24962a1fa1c54660508d097",
+      "name": "New Dashboard User",
+      "role": "user",
+      "createdAt": "2026-10-08T02:38:13.188Z"
     }
   ],
   "analyses": [
